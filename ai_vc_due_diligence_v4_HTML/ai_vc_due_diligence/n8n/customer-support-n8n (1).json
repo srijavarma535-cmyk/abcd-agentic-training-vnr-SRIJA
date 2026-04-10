@@ -1,0 +1,596 @@
+{
+  "name": "customer-support-n8n",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {},
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "5e377a25-bea1-48d3-8f1c-2028f6bb5fd0",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "i8pnxRwT493VhSe4",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d90afe54-4dfd-4614-b975-05886e5d4008",
+              "name": "emailBody",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            },
+            {
+              "id": "44693c30-4152-4d94-865e-7c00f3a401fa",
+              "name": "threadID",
+              "value": "={{ $json.threadId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        208,
+        0
+      ],
+      "id": "3f2bd34e-cd65-4b50-bef1-ea3c45ae1060",
+      "name": "Set Content"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Prompt:\n\nAnalyze the content of the following email and determine whether it is related to customer support. If the email pertains to any of the following topics, mark customerSupport as true; otherwise, mark it as false.\n\nCustomer Support Topics Include:\n\nQuestions about order status, tracking, or changes\n\nIssues with damaged or defective products\n\nRefund or return requests\n\nSubscription cancellations or adjustments\n\nTechnical issues with products, website, or app\n\nPayment or billing inquiries\n\nRequests for speaking with a support representative\n\nOutput:\n\nProvide the result in JSON format with a field named \"customerSupport\" set to true or false",
+              "role": "system"
+            },
+            {
+              "content": "=here is the incoming email:  {{ $json.emailBody }}"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        416,
+        0
+      ],
+      "id": "6d573ce4-bb15-406d-ae4f-873873b13b5c",
+      "name": "Customer Support Eval",
+      "credentials": {
+        "openAiApi": {
+          "id": "mJ0kJf6QNOmT7ocO",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.message.content.customerSupport }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    },
+                    "id": "24ab3293-84c5-40ce-833d-42e9b5e6c9bc"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Customer Support"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "881625ad-9494-4447-9476-b2bef1d810c0",
+                    "leftValue": "={{ $json.message.content.customerSupport }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "false",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Not Customer Support"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        768,
+        0
+      ],
+      "id": "55a9abe8-661a-484b-b8a0-8d0262137a05",
+      "name": "Switch - Customer Support?"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Set Content').item.json.emailBody }}",
+        "options": {
+          "systemMessage": "System Role\n\nYou are a highly skilled and empathetic customer support agent specializing in drafting professional and helpful responses to incoming customer emails.\n\nTask Specification\n\nTake an incoming customer support email.\n\nUse the \"customerSupportDocs\" tool to look up relevant policies or FAQs to ensure accurate and policy-compliant responses.\n\nCreate a draft response using the \"createDraft\" tool.\n\nAfter drafting the email, provide a concise summary of the email content.\n\nEnsure the response:\n\nDirectly addresses the customer's query.\n\nMaintains a polite and professional tone.\n\nEnds with the sign-off:\n\n\"Kelly, Customer Support ABC Corp.\"\n\nSpecifics and Context\n\nYou must use the \"customerSupportDocs\" tool before drafting to ensure the response aligns with company policies and FAQs.\n\nThe \"createDraft\" tool must be used to finalize and prepare the draft for sending.\n\nThe summary should briefly explain the issue addressed and the key points for resolution provided in the response.\n\nExample\n\nIncoming Email:\n\"I ordered a product a week ago, but it still hasn't shipped. When will it arrive?\"\n\ncustomerSupportDocs Search Query:\n\"shipping timelines\"\n\nRelevant Info Found:\nStandard shipping takes 7–10 business days. Delays may occur during high-demand periods."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        1216,
+        -176
+      ],
+      "id": "99290b2c-b14a-4d25-88b6-469b22082115",
+      "name": "Customer support agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1136,
+        0
+      ],
+      "id": "048e7407-ed43-4d99-8f3c-a7f6b17e5205",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "mJ0kJf6QNOmT7ocO",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "description": "Retrieves information about our customer support policies and FAQs"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolVectorStore",
+      "typeVersion": 1.1,
+      "position": [
+        1296,
+        176
+      ],
+      "id": "d7d7224c-bfbe-4446-b866-b7da0641efd7",
+      "name": "Answer questions with a vector store"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1616,
+        336
+      ],
+      "id": "ac9f86ff-e644-49f3-b5b2-bb54a80dfcec",
+      "name": "OpenAI Chat Model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "mJ0kJf6QNOmT7ocO",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "pineconeIndex": {
+          "__rl": true,
+          "value": "sample",
+          "mode": "list",
+          "cachedResultName": "sample"
+        },
+        "options": {
+          "pineconeNamespace": "customerSupport"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePinecone",
+      "typeVersion": 1.3,
+      "position": [
+        1216,
+        336
+      ],
+      "id": "ebe9a002-e649-44a5-ab7c-53f7ff903b5f",
+      "name": "Pinecone Vector Store",
+      "credentials": {
+        "pineconeApi": {
+          "id": "SFHWkmUoTVk34v6t",
+          "name": "PineconeApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1232,
+        496
+      ],
+      "id": "4b1f728d-3310-45d2-8168-8777de701ad8",
+      "name": "Embeddings OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": "mJ0kJf6QNOmT7ocO",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "={{ $fromAI(\"subject\") }}",
+        "message": "={{ $fromAI(\"emailBody\") }}",
+        "options": {
+          "threadId": "={{ $('Set Content').item.json.threadID }}",
+          "sendTo": "={{ $('Gmail Trigger').item.json.headers.from }}"
+        }
+      },
+      "type": "n8n-nodes-base.gmailTool",
+      "typeVersion": 2.1,
+      "position": [
+        1568,
+        64
+      ],
+      "id": "758ba3d2-8d4b-4299-951d-60b537ab452e",
+      "name": "Create a draft in Gmail",
+      "webhookId": "10e4fe27-227c-4ebd-8f76-f0752177a8d8",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "i8pnxRwT493VhSe4",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "5000805535",
+        "text": "={{ $json.output }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1568,
+        -176
+      ],
+      "id": "25881f85-67ff-4e8e-8f44-16e85db73ef3",
+      "name": "Send a text message",
+      "webhookId": "292ed360-ae69-4f53-98ab-f77272e75641",
+      "credentials": {
+        "telegramApi": {
+          "id": "7ToYcIk0EsNKBZ87",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        1824,
+        -112
+      ],
+      "id": "f17810eb-7376-4878-9536-e0405b5f4c54",
+      "name": "Telegram Trigger",
+      "webhookId": "748e3273-43c1-439e-b155-817e7a144b8e",
+      "credentials": {
+        "telegramApi": {
+          "id": "7ToYcIk0EsNKBZ87",
+          "name": "Telegram account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "chatId": "5000805535",
+        "text": "=you received an email at {{ $now.format('hh:MM') }} saying {{ $('Set Content').item.json.emailBody }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        976,
+        144
+      ],
+      "id": "0ff736e6-5683-4338-9321-f0831a1f5888",
+      "name": "Send a text message1",
+      "webhookId": "292ed360-ae69-4f53-98ab-f77272e75641",
+      "credentials": {
+        "telegramApi": {
+          "id": "7ToYcIk0EsNKBZ87",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Gmail Trigger": [
+      {
+        "json": {
+          "id": "19c534fccb49f42c",
+          "threadId": "19c534fccb49f42c",
+          "labelIds": [
+            "UNREAD",
+            "CATEGORY_PERSONAL",
+            "INBOX"
+          ],
+          "sizeEstimate": 7384,
+          "headers": {
+            "delivered-to": "Delivered-To: tejapolisettys47@gmail.com",
+            "received": "Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])\r\n        by mx.google.com with SMTPS id 586e51a60fabf-40eaf136751sor2485717fac.10.2026.02.12.11.24.24\r\n        for <tejapolisettys47@gmail.com>\r\n        (Google Transport Security);\r\n        Thu, 12 Feb 2026 11:24:24 -0800 (PST)",
+            "x-received": "X-Received: by 2002:a05:6820:160e:b0:66e:e7e:6524 with SMTP id\r\n 006d021491bc7-675dd82f24cmr1455142eaf.58.1770924264409; Thu, 12 Feb 2026\r\n 11:24:24 -0800 (PST)",
+            "arc-seal": "ARC-Seal: i=1; a=rsa-sha256; t=1770924264; cv=none;\r\n        d=google.com; s=arc-20240605;\r\n        b=haoKx8HGS5tT6eyeJoA9Fuau9QbEuYbhD+FOdm/97DQ02SrAhcBPhFffRPVd5eIs1O\r\n         GdY8RPo6xMMyObD/LcSNlZDXZB8o6Rfx4CS+xiABanv8ltX7YSsN5Qc0POWFGxADQFVW\r\n         VfflliDc+tF1fZGRkqs/WybMiOfK6SQGlCETy6ipqqkWZAPvSawjzHQQCSF5AkXB3SSd\r\n         giB/YHZs8oCOQKePQaLi2FQssCVnhsiP+jw2JVThpMUb4Y+1K/L/8IqTcfWBij9XVktN\r\n         DYEu64cpWjdpevLSNcDezNKX/ZmM6bjD6HYVc78Jzda49Bp/6Or9Qcww9GyKmYLrdT/m\r\n         FZ+A==",
+            "arc-message-signature": "ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20240605;\r\n        h=to:subject:message-id:date:from:mime-version:dkim-signature;\r\n        bh=Pq9ZPEdr/sy5hHz2fhpAn9wKo0mAjc4KxMTUirg68bU=;\r\n        fh=MmBSGJpeC+EQCLhumILZlQDZHRLBAt0PHFBlyaNN/Fs=;\r\n        b=FnEZH1n8wk+X+TJ7YAqOiEmqYq5niHrmqE7eAMwI0sIycMXg2Vq7PP4M1f99Rv2Pb+\r\n         1GDQdWgBAn8FExwgUWqcWZMWT7j/qFgT7nkYXE+Y0nntSTEBGAp9U5q7dy4wwMY+A7pf\r\n         3DzX0m3ltn9hZqSB4fdPd6P9TC2lG7opyQe0JqVMw4rBbahmL3qs2VMocjpBFhOEerhk\r\n         hlMqj9GhAJKE5S/h2DlHe/xZjQLyBW5jX5/hclvL62BlSjhudqxOJ3gkPWTGFNrJ2qyB\r\n         CSHn1MOAmuIVS4huG8MbPfW/GAU4TFyt0f0R2+k6ob3SCgch0P99jKg7BmJhqP46mW85\r\n         hDyw==;\r\n        dara=google.com",
+            "arc-authentication-results": "ARC-Authentication-Results: i=1; mx.google.com; arc=none",
+            "return-path": "Return-Path: <tejapolisetty143@gmail.com>",
+            "received-spf": "Received-SPF: pass (google.com: domain of tejapolisetty143@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;",
+            "authentication-results": "Authentication-Results: mx.google.com;\r\n       dkim=pass header.i=@gmail.com header.s=20230601 header.b=B8wdUOVd;\r\n       arc=pass (i=1);\r\n       spf=pass (google.com: domain of tejapolisetty143@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=tejapolisetty143@gmail.com;\r\n       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com;\r\n       dara=pass header.i=@gmail.com",
+            "dkim-signature": "DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;\r\n        d=gmail.com; s=20230601; t=1770924264; x=1771529064; dara=google.com;\r\n        h=to:subject:message-id:date:from:mime-version:from:to:cc:subject\r\n         :date:message-id:reply-to;\r\n        bh=Pq9ZPEdr/sy5hHz2fhpAn9wKo0mAjc4KxMTUirg68bU=;\r\n        b=B8wdUOVdEhLv6ueC67sEq7K12Zmfo1POiV15UTI7Ai4gLDqAb6Csk+rz47AvdSe1Iy\r\n         BRr+gZ27emFjkTgOJs/TCV5Sj6/3ykOceSgCPPBA50uWIcync9D7RFnV5wMJHred69/E\r\n         /DbSzp5mOwxyXaJSv7nrr7Slcl9Z4nMp5m2gSJkIcCeQLKdDopdTjDtgWWEHqUPViRSq\r\n         rR6YujFHyRvpID+R04OnYPLcoye2MPmLteuj8/Zt7/DXnZLP+oqq8HuFglB72bRRTznv\r\n         Z13SfAj8krpoIVR6Nm5OtVqgbcapS+DknWBOSX55AotxXzuCiDPOkt0CxvTojSvmc2KE\r\n         MS6w==",
+            "x-google-dkim-signature": "X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;\r\n        d=1e100.net; s=20230601; t=1770924264; x=1771529064;\r\n        h=to:subject:message-id:date:from:mime-version:x-gm-gg\r\n         :x-gm-message-state:from:to:cc:subject:date:message-id:reply-to;\r\n        bh=Pq9ZPEdr/sy5hHz2fhpAn9wKo0mAjc4KxMTUirg68bU=;\r\n        b=Ohq9Ooyg+zLuxXcrmG3wqv7QISOrta9y02rFRMaqSYnQJVo1Hbxtv28e3G/e6ytpOf\r\n         4Ql0d1UIGfvPlZhC8LMlGo0aIVWkk34rdl87IX4d92vND9tJj6a4OapD+03Ec6FZugFA\r\n         pCoHeKNaXCwsBWRNb1bIn1LfD0XowCUYcmiOQZ1fPpSt7iD9qjwZNmr+zjilJEdLpAxq\r\n         e0fkhkE8ScyWQHf6YuNWFEPVcvmRveK2DKWx6cF3RGTTQmWWUTJXV6Tkhw4dRSD8DdUg\r\n         M7rbTOW0dreZr1Z/UjdAS5v/+ToidsBgyGaoVcSMeVO2v+dJIMhcOcIiWAe2bfqzespQ\r\n         Z0EA==",
+            "x-gm-message-state": "X-Gm-Message-State: AOJu0Yy5pBcR+ouF/Ff07Ea/zoCWNEzKobVPEsZWkYkZk9JWEM0z96kc\r\n\tMmBNbGMdNHmSV6r4AUNyy0Kkf3WQsw3oHh6rn6sVW3dQqur9r2nskeQtRC8pCQKuRHFt4i+6P/X\r\n\tFkjzKtndJ/osAUcjb/36iQ3RG9TSvAbPbfA==",
+            "x-gm-gg": "X-Gm-Gg: AZuq6aKxgO7fj8opEfLVrqa1l1RaGKv2OIhPtDvBsZjSs1Hc5CTvcPddbwuEopZB66v\r\n\t/CZKIroEdsvmLGzfhOOH49QvBR6EKwPN2XXtQyL0rweVu++u1/88dgkeujR42d6wR1x1zSMZVs5\r\n\t0yhMWmFZIKBEA9Vg7OqZfFo4pF1y8K5QMlPKdfHvPBEm0e4ybaOiQn4sVmoNcXbtsIJv8wJFRgn\r\n\tzXS10BWb/d4kkAe9iOYqWK4bE5iaahmWtinXKmZuS2SmWr5mWOBcWVDJZw37muJlQqMWSxOBMJP\r\n\tbEQqNmUQ",
+            "mime-version": "MIME-Version: 1.0",
+            "from": "From: teja polisetty <tejapolisetty143@gmail.com>",
+            "date": "Date: Fri, 13 Feb 2026 00:54:12 +0530",
+            "x-gm-features": "X-Gm-Features: AZwV_QhjrAWGb9iyAOo0Rw9-JHya0F_LKSduEQXiVlO3KjSNrChsjFta7UvDTWE",
+            "message-id": "Message-ID: <CAE2pmgyCzGCfq18VVtF_omgLgZ7a2cVrNW3ubC13VnOeHhKbhw@mail.gmail.com>",
+            "subject": "Subject: support for laptop test",
+            "to": "To: Teja Polisetty Sai <tejapolisettys47@gmail.com>",
+            "content-type": "Content-Type: multipart/alternative; boundary=\"000000000000b44da0064aa56f21\""
+          },
+          "html": "<div dir=\"ltr\">hi,<div><br></div><div>can i get the status on the refund regarding my laptop?</div><div>also can you tell me if you have the spare parts of the motherboard?</div><div><br></div><div>thanks and regards</div><div>from43</div></div>\n",
+          "text": "hi,\n\ncan i get the status on the refund regarding my laptop?\nalso can you tell me if you have the spare parts of the motherboard?\n\nthanks and regards\nfrom43\n",
+          "textAsHtml": "<p>hi,</p><p>can i get the status on the refund regarding my laptop?<br/>also can you tell me if you have the spare parts of the motherboard?</p><p>thanks and regards<br/>from43</p>",
+          "subject": "support for laptop test",
+          "date": "2026-02-12T19:24:12.000Z",
+          "to": {
+            "value": [
+              {
+                "address": "tejapolisettys47@gmail.com",
+                "name": "Teja Polisetty Sai"
+              }
+            ],
+            "html": "<span class=\"mp_address_group\"><span class=\"mp_address_name\">Teja Polisetty Sai</span> &lt;<a href=\"mailto:tejapolisettys47@gmail.com\" class=\"mp_address_email\">tejapolisettys47@gmail.com</a>&gt;</span>",
+            "text": "\"Teja Polisetty Sai\" <tejapolisettys47@gmail.com>"
+          },
+          "from": {
+            "value": [
+              {
+                "address": "tejapolisetty143@gmail.com",
+                "name": "teja polisetty"
+              }
+            ],
+            "html": "<span class=\"mp_address_group\"><span class=\"mp_address_name\">teja polisetty</span> &lt;<a href=\"mailto:tejapolisetty143@gmail.com\" class=\"mp_address_email\">tejapolisetty143@gmail.com</a>&gt;</span>",
+            "text": "\"teja polisetty\" <tejapolisetty143@gmail.com>"
+          },
+          "messageId": "<CAE2pmgyCzGCfq18VVtF_omgLgZ7a2cVrNW3ubC13VnOeHhKbhw@mail.gmail.com>"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Content": {
+      "main": [
+        [
+          {
+            "node": "Customer Support Eval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Customer Support Eval": {
+      "main": [
+        [
+          {
+            "node": "Switch - Customer Support?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch - Customer Support?": {
+      "main": [
+        [
+          {
+            "node": "Customer support agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Customer support agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Answer questions with a vector store": {
+      "ai_tool": [
+        [
+          {
+            "node": "Customer support agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Answer questions with a vector store",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pinecone Vector Store": {
+      "ai_vectorStore": [
+        [
+          {
+            "node": "Answer questions with a vector store",
+            "type": "ai_vectorStore",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Pinecone Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a draft in Gmail": {
+      "ai_tool": [
+        [
+          {
+            "node": "Customer support agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Customer support agent": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "7f2a390e-e7a1-4427-83d6-0d73cc3f6144",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "58b127a8a51731be4e30a887085181582ad259c3c1c13639b56b9fdfe474d01a"
+  },
+  "id": "NHgeLYcccGWd30dH",
+  "tags": []
+}
