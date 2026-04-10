@@ -1,0 +1,43 @@
+
+
+One-line definitions (minimum for presentation)
+Concept                                                  Definition
+ML                         Teaching computers to predict from dataAlgorithmStep-by-step rule a model follows to learn
+Neural Network (NN)        Layered math functions inspired by the brain
+Docker                     Isolated container to run any app anywhere
+Tokenization               Splitting text into numbered pieces (tokens)
+Vectors/Embeddings         Numbers that capture the meaning of a token
+Transformer                Architecture using attention to understand context
+LLM                        A Transformer trained on massive text to generate language
+N8N                        Visual no-code workflow automation running inside Docker
+Credentials                API keys/auth stored so agents can call external services
+MCP                        Standard protocol so any LLM can call any tool uniformly
+Tool                       A function an agent can invoke (search, code, API)
+Agent                      LLM + tools + memory that plans and acts autonomously
+Handoff                    One agent passing control to a specialized agent
+Guardrail                  Rule that stops an agent from doing something unsafe
+LangChain                  Library of building blocks (chains, memory, prompts) for LLM apps
+LangGraph                  Extends LangChain with stateful graph-based agent flows
+LangSmith                  Debugging/eval/tracing platform for LangChain runs
+OpenAI Agents SDK          Official SDK for building tool-using agents with OpenAI models
+CrewAIFramework            where agents have roles like a crew/team
+AutoGen                    Framework for multi-agent conversations between bots
+Prompt Chaining            Output of one prompt becomes input of the next
+RoutingLLM                 decides which agent/tool handles a request
+Parallelization            Multiple agents run at the same time on sub-tasks
+Orchestrator              -WorkerOne agent plans; specialized workers execute
+Evaluator-OptimizerOne    agent grades output; another improves it in a loop
+SerperWeb                 search API that gives agents live internet access
+PushoverPush              notification service so agents alert humans
+Tracing                   Recording every step an agent took so you can debug it
+
+How the layers connect (the spine of the course)
+
+Foundation → Language — NN is the engine inside every LLM. You can't understand why an LLM works without knowing what a neural network is.
+Language → Infrastructure — Once you have an LLM, you need somewhere to run it reliably. Docker gives that isolation; N8N gives a visual way to wire LLMs to the world; MCP gives a standard "plug" between any LLM and any tool.
+Infrastructure → Agent Primitives — Now you can give the LLM tools to call, turn it into an agent, let agents pass work to each other (handoffs), and add guardrails so they don't go rogue.
+Agent Primitives → Frameworks — Instead of wiring tools and handoffs by hand, frameworks (LangChain, LangGraph, CrewAI, AutoGen, OpenAI SDK) give you pre-built patterns and state management.
+Frameworks → Workflow Patterns — With frameworks in place, you learn the reusable design patterns: chain, route, parallelize, orchestrate, evaluate-optimize. Lab 2 is where you code these.
+Workflow Patterns → Multi-model + Advanced tools — Real production agents mix different models (vision, code, text), need live web search (Serper), and need to alert humans (Pushover). LangSmith enters here for debugging.
+All layers → Observability — Tracing cuts across everything. Every agent step is logged so you can see what the LLM decided, which tool it called, and where it failed.
+
