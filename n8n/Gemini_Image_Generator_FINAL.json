@@ -1,1 +1,609 @@
+{
+  "name": "Gemini Image Generator - COMPLETE v2",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "a7d58007-87bd-48f8-b58f-de08d5828c56",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [-1200, 200]
+    },
+
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1AfWgQIq5LyuDcdQ9UHOMRjOmMmW_YU_iByA00aDJk4M",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "e5affb10-1b73-4793-ada4-29c709845620",
+      "name": "Get row(s) in sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [-960, 200],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "nKvDLL2OoGCv7rw6",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "48aab62a-fa2e-44e2-9d1e-ecb490c903ce",
+      "name": "Loop Over Items",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [-720, 200]
+    },
+
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "skip-processed",
+              "leftValue": "={{ $json[\"image_url\"] }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "skip-failed-status",
+              "leftValue": "={{ $json[\"Status\"] }}",
+              "rightValue": "success",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            },
+            {
+              "id": "validate-prompt-not-empty",
+              "leftValue": "={{ $json[\"prompt\"] }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f4c32831-55d3-4cdf-a283-221a7c7826ca",
+      "name": "Skip Already Processed + Validate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-480, 200]
+    },
+
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "set-status-pending",
+              "name": "Status",
+              "value": "pending",
+              "type": "string"
+            },
+            {
+              "id": "set-prompt",
+              "name": "prompt",
+              "value": "={{ $json[\"prompt\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "set-row-number",
+              "name": "row_number",
+              "value": "={{ $json[\"row_number\"] }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-pending-status",
+      "name": "Set Status Pending",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-240, 200]
+    },
+
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1AfWgQIq5LyuDcdQ9UHOMRjOmMmW_YU_iByA00aDJk4M",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "prompt": "={{ $json[\"prompt\"] }}",
+            "Status": "processing",
+            "created_at": "={{ new Date().toISOString() }}"
+          },
+          "matchingColumns": ["prompt"],
+          "schema": [
+            { "id": "prompt", "displayName": "prompt", "required": false, "defaultMatch": true, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "Status", "displayName": "Status", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": false },
+            { "id": "created_at", "displayName": "created_at", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": false }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "mark-processing",
+      "name": "Mark Row as Processing",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [0, 200],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "nKvDLL2OoGCv7rw6",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+
+    {
+      "parameters": {
+        "jsCode": "// Generate 3 variation prompts for each row\nconst items = [];\nconst basePrompt = $input.item.json.prompt;\nconst rowNumber = $input.item.json.row_number;\nconst variations = 3;\n\nfor (let i = 0; i < variations; i++) {\n  items.push({\n    json: {\n      prompt: basePrompt,\n      variation_index: i,\n      row_number: rowNumber,\n      enhanced_prompt: basePrompt + ` ultra realistic, 4k, detailed, cinematic lighting, variation ${i + 1}`,\n      seed: (parseInt(rowNumber || 0) * 100) + i\n    }\n  });\n}\n\nreturn items;"
+      },
+      "id": "generate-variations",
+      "name": "Generate 3 Variations",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 200]
+    },
+
+    {
+      "parameters": {
+        "url": "=https://image.pollinations.ai/prompt/{{ encodeURIComponent($json[\"enhanced_prompt\"]) }}?width=1024&height=1024&seed={{ $json[\"seed\"] }}&nologo=true&enhance=true",
+        "options": {
+          "timeout": 60000,
+          "retry": {
+            "enabled": true,
+            "maxTries": 3,
+            "waitBetweenTries": 5000
+          },
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "53151614-914c-45b8-a8d3-794e8242a5e6",
+      "name": "HTTP Request - Generate Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [480, 200]
+    },
+
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "check-binary-exists",
+              "leftValue": "={{ Object.keys($binary).length > 0 }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-image-success",
+      "name": "Image Generated Successfully?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [720, 200]
+    },
+
+    {
+      "parameters": {
+        "name": "=generated_{{ $json[\"prompt\"].substring(0,20).replace(/[^a-zA-Z0-9]/g,'_') }}_var{{ $json[\"variation_index\"] }}_{{ $now.toFormat('yyyyMMdd_HHmmss') }}.png",
+        "driveId": {
+          "__rl": true,
+          "value": "MY_DRIVE",
+          "mode": "list"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1sjFh3thT3vxwoIkjkY2KVTFf6AeyNomD",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "e2425e17-7b74-4976-ae2b-40465cac89c5",
+      "name": "Upload file to Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [960, 120],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "rzhGRqLuZ8wg4A0w",
+          "name": "Google Drive account"
+        }
+      }
+    },
+
+    {
+      "parameters": {
+        "operation": "share",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json[\"id\"] }}",
+          "mode": "id"
+        },
+        "permissionsUi": {
+          "permissionsValues": {
+            "role": "reader",
+            "type": "anyone",
+            "allowFileDiscovery": true
+          }
+        },
+        "options": {}
+      },
+      "id": "7b1142b0-208a-4518-b633-37954e3483e7",
+      "name": "Share file - Make Public",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [1200, 120],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "rzhGRqLuZ8wg4A0w",
+          "name": "Google Drive account"
+        }
+      }
+    },
+
+    {
+      "parameters": {
+        "jsCode": "// Build all image URLs and hyperlink formulas for this item\nconst fileId = $input.item.json.id;\nconst prompt = $input.item.json.name ? \n  $input.item.json.name.replace(/_var[0-9]+.*/,'').replace('generated_','').replace(/_/g,' ') : '';\n\nconst directUrl = `https://drive.google.com/file/d/${fileId}/view`;\nconst embedUrl = `https://drive.google.com/uc?id=${fileId}`;\nconst hyperlink = `=HYPERLINK(\"https://drive.google.com/file/d/${fileId}/view\",\"View Image ${$input.item.json.variation_index !== undefined ? '#' + ($input.item.json.variation_index + 1) : ''}\")  `;\n\nreturn [{\n  json: {\n    ...($input.item.json),\n    file_id: fileId,\n    direct_url: directUrl,\n    embed_url: embedUrl,\n    hyperlink_formula: hyperlink,\n    created_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "build-urls",
+      "name": "Build URLs & Hyperlink",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1440, 120]
+    },
+
+    {
+      "parameters": {
+        "jsCode": "// Aggregate all 3 variation URLs for the same prompt into one row update\n// This node collects items and groups by original prompt\nconst item = $input.item.json;\n\n// We store variation URLs individually — sheet uses comma-separated list\nreturn [{\n  json: {\n    prompt: item.prompt || '',\n    row_number: item.row_number || '',\n    image_url: item.direct_url,\n    embed_url: item.embed_url,\n    hyperlink_formula: item.hyperlink_formula,\n    file_id: item.file_id,\n    variation_index: item.variation_index,\n    created_at: item.created_at\n  }\n}];"
+      },
+      "id": "prepare-sheet-data",
+      "name": "Prepare Sheet Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1680, 120]
+    },
+
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1AfWgQIq5LyuDcdQ9UHOMRjOmMmW_YU_iByA00aDJk4M",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "prompt": "={{ $json[\"prompt\"] }}",
+            "image_url": "={{ $json[\"image_url\"] }}",
+            "image_url_2": "={{ $json[\"variation_index\"] === 1 ? $json[\"image_url\"] : '' }}",
+            "image_url_3": "={{ $json[\"variation_index\"] === 2 ? $json[\"image_url\"] : '' }}",
+            "hyperlink": "={{ $json[\"hyperlink_formula\"] }}",
+            "created_at": "={{ $json[\"created_at\"] }}",
+            "Status": "success",
+            "file_id": "={{ $json[\"file_id\"] }}"
+          },
+          "matchingColumns": ["prompt"],
+          "schema": [
+            { "id": "prompt", "displayName": "prompt", "required": false, "defaultMatch": true, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "image_url", "displayName": "image_url", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": false },
+            { "id": "image_url_2", "displayName": "image_url_2", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": false },
+            { "id": "image_url_3", "displayName": "image_url_3", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": false },
+            { "id": "hyperlink", "displayName": "hyperlink", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": false },
+            { "id": "created_at", "displayName": "created_at", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": false },
+            { "id": "Status", "displayName": "Status", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": false },
+            { "id": "file_id", "displayName": "file_id", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": false }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "2479bcca-7140-4589-996d-1df48fc0aaf9",
+      "name": "Update Sheet - Success",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [1920, 120],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "nKvDLL2OoGCv7rw6",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1AfWgQIq5LyuDcdQ9UHOMRjOmMmW_YU_iByA00aDJk4M",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "prompt": "={{ $json[\"prompt\"] }}",
+            "Status": "failed",
+            "created_at": "={{ new Date().toISOString() }}"
+          },
+          "matchingColumns": ["prompt"],
+          "schema": [
+            { "id": "prompt", "displayName": "prompt", "required": false, "defaultMatch": true, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "Status", "displayName": "Status", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": false },
+            { "id": "created_at", "displayName": "created_at", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": false }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "mark-failed",
+      "name": "Mark Row as Failed",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [960, 380],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "nKvDLL2OoGCv7rw6",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+
+    {
+      "parameters": {
+        "chatId": "7581082017",
+        "text": "=✅ Image Generated!\n\n📝 Prompt: {{ $json[\"prompt\"] }}\n🖼 Variation {{ ($json[\"variation_index\"] || 0) + 1 }} of 3\n🔗 URL: {{ $json[\"image_url\"] }}\n⏰ At: {{ $json[\"created_at\"] }}",
+        "additionalFields": {
+          "parse_mode": "HTML",
+          "disable_web_page_preview": false
+        }
+      },
+      "id": "telegram-success",
+      "name": "Telegram - Success Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.1,
+      "position": [2160, 120],
+      "credentials": {
+        "telegramApi": {
+          "id": "iEY0vheqJwgOwOSN",
+          "name": "Telegram account"
+        }
+      }
+    },
+
+    {
+      "parameters": {
+        "chatId": "7581082017",
+        "text": "=❌ Image Generation FAILED!\n\n📝 Prompt: {{ $json[\"prompt\"] }}\n⏰ At: {{ new Date().toISOString() }}\n\n⚠️ Row marked as 'failed' in sheet. Will retry next cycle.",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "telegram-fail",
+      "name": "Telegram - Failure Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.1,
+      "position": [1200, 380],
+      "credentials": {
+        "telegramApi": {
+          "id": "iEY0vheqJwgOwOSN",
+          "name": "Telegram account"
+        }
+      }
+    },
+
+    {
+      "parameters": {
+        "jsCode": "// Dashboard summary node - runs after all items processed\n// Counts pending, success, failed rows\nconst items = $input.all();\nlet success = 0, failed = 0, pending = 0;\n\nitems.forEach(item => {\n  const status = (item.json.Status || '').toLowerCase();\n  if (status === 'success') success++;\n  else if (status === 'failed') failed++;\n  else pending++;\n});\n\nreturn [{\n  json: {\n    total: items.length,\n    success,\n    failed,\n    pending,\n    summary: `✅ ${success} success | ❌ ${failed} failed | ⏳ ${pending} pending`,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "dashboard-summary",
+      "name": "Dashboard Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-960, 500]
+    },
+
+    {
+      "parameters": {
+        "chatId": "7581082017",
+        "text": "=📊 Workflow Run Summary\n\n{{ $json[\"summary\"] }}\n⏰ Run at: {{ $json[\"timestamp\"] }}\n\n🔄 Next run in 1 hour.",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "telegram-summary",
+      "name": "Telegram - Run Summary",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.1,
+      "position": [-720, 500],
+      "credentials": {
+        "telegramApi": {
+          "id": "iEY0vheqJwgOwOSN",
+          "name": "Telegram account"
+        }
+      }
+    },
+
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'ok', message: 'Workflow triggered', timestamp: new Date().toISOString() }) }}",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger (Manual Run)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [-1200, 500],
+      "webhookId": "image-gen-webhook"
+    }
+  ],
+
+  "pinData": {},
+
+  "connections": {
+    "Schedule Trigger": {
+      "main": [[{ "node": "Get row(s) in sheet", "type": "main", "index": 0 }]]
+    },
+    "Webhook Trigger (Manual Run)": {
+      "main": [[{ "node": "Get row(s) in sheet", "type": "main", "index": 0 }]]
+    },
+    "Get row(s) in sheet": {
+      "main": [[
+        { "node": "Loop Over Items", "type": "main", "index": 0 },
+        { "node": "Dashboard Summary", "type": "main", "index": 0 }
+      ]]
+    },
+    "Dashboard Summary": {
+      "main": [[{ "node": "Telegram - Run Summary", "type": "main", "index": 0 }]]
+    },
+    "Loop Over Items": {
+      "main": [
+        [{ "node": "Skip Already Processed + Validate", "type": "main", "index": 0 }],
+        [{ "node": "Loop Over Items", "type": "main", "index": 0 }]
+      ]
+    },
+    "Skip Already Processed + Validate": {
+      "main": [
+        [{ "node": "Set Status Pending", "type": "main", "index": 0 }]
+      ]
+    },
+    "Set Status Pending": {
+      "main": [[{ "node": "Mark Row as Processing", "type": "main", "index": 0 }]]
+    },
+    "Mark Row as Processing": {
+      "main": [[{ "node": "Generate 3 Variations", "type": "main", "index": 0 }]]
+    },
+    "Generate 3 Variations": {
+      "main": [[{ "node": "HTTP Request - Generate Image", "type": "main", "index": 0 }]]
+    },
+    "HTTP Request - Generate Image": {
+      "main": [[{ "node": "Image Generated Successfully?", "type": "main", "index": 0 }]]
+    },
+    "Image Generated Successfully?": {
+      "main": [
+        [{ "node": "Upload file to Drive", "type": "main", "index": 0 }],
+        [{ "node": "Mark Row as Failed", "type": "main", "index": 0 }]
+      ]
+    },
+    "Upload file to Drive": {
+      "main": [[{ "node": "Share file - Make Public", "type": "main", "index": 0 }]]
+    },
+    "Share file - Make Public": {
+      "main": [[{ "node": "Build URLs & Hyperlink", "type": "main", "index": 0 }]]
+    },
+    "Build URLs & Hyperlink": {
+      "main": [[{ "node": "Prepare Sheet Data", "type": "main", "index": 0 }]]
+    },
+    "Prepare Sheet Data": {
+      "main": [[{ "node": "Update Sheet - Success", "type": "main", "index": 0 }]]
+    },
+    "Update Sheet - Success": {
+      "main": [[{ "node": "Telegram - Success Alert", "type": "main", "index": 0 }]]
+    },
+    "Mark Row as Failed": {
+      "main": [[{ "node": "Telegram - Failure Alert", "type": "main", "index": 0 }]]
+    }
+  },
+
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "errorWorkflow": "",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "Asia/Kolkata"
+  },
+  "versionId": "complete-v2-fixed-2026",
+  "meta": {
+    "instanceId": "615ec97ff8b01ed956b493b97beda3600477b4078bc4974fa20386fcccf17599",
+    "templateId": "gemini-image-gen-complete-v2",
+    "notes": "COMPLETE workflow with: skip processed, 3 variations per prompt, error handling, retry, status tracking, Telegram alerts, hyperlink in sheet, ISO timestamps, dashboard summary. Sheet columns required: prompt | image_url | image_url_2 | image_url_3 | hyperlink | created_at | Status | file_id"
+  },
+  "id": "oJwWExATiYZ9x21c",
+  "tags": ["image-generation", "automation", "google-sheets", "complete"]
+}
 
