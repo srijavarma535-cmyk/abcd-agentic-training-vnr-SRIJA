@@ -1,0 +1,9 @@
+# AI VC Due Diligence v5 — Ollama Edition
+# Core: Python stdlib only (urllib, json, asyncio) — zero packages for agents!
+python-dotenv>=1.0.0
+streamlit>=1.35.0
+httpx>=0.27.0
+beautifulsoup4>=4.12.0
+pdfplumber>=0.11.0
+pytest>=8.0.0
+pandas>=2.0.0
