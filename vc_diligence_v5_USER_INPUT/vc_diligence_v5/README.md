@@ -1,87 +1,160 @@
-# 🏦 AI VC Due Diligence Agent Team v5
-### ⚡ Ollama-powered · 100% Local · Real-time Streaming · Bloomberg-dark Dashboard
+## AI VC Due Diligence Multi-Agent System
+
+> Automating startup evaluation with multi-agent AI pipelines powered by Ollama.
 
 ---
 
-## 🚀 Quick Start
+## Business Problem
 
-### Step 1 — Install Ollama
-Download from https://ollama.com/download then:
-```bash
-ollama pull llama3.2
-ollama serve
-```
-
-### Step 2 — Install dependencies
-```bash
-pip install -r requirements.txt
-```
-
-### Step 3 — Run
-```bash
-# CLI
-python main.py --startup "Stripe" --mode full
-
-# Web UI
-streamlit run ui/app.py
-```
+- Venture capital due diligence is time-consuming and requires analyzing multiple dimensions (market, team, product, financials, competition, risk).  
+- Human analysts often face information overload from pitch decks, websites, and reports.  
+- Existing tools provide fragmented insights without a unified pipeline.  
+- Manual evaluation lacks consistency and scalability.  
+- There is no single system that combines automated data collection, multi-agent analysis, and structured investment recommendations.
 
 ---
 
-## 📁 Structure
-```
-vc_diligence_v5/
-├── main.py                    ← CLI entry point (auto-opens HTML report)
-├── requirements.txt
-├── Makefile
-├── agents/
-│   ├── base_agent.py          ← Ollama REST caller (stdlib urllib only)
-│   ├── market_agent.py
-│   ├── team_agent.py
-│   ├── product_agent.py
-│   ├── financial_agent.py
-│   ├── competitive_agent.py
-│   ├── risk_agent.py
-│   └── committee_agent.py
-├── orchestrator/
-│   └── pipeline.py            ← Async orchestrator with streaming callbacks
-├── tools/
-│   ├── html_generator.py      ← Bloomberg-dark dashboard HTML
-│   ├── report_generator.py    ← Markdown memo
-│   ├── web_scraper.py
-│   └── pdf_parser.py
-├── ui/
-│   └── app.py                 ← Streamlit real-time streaming UI
-├── config/
-│   └── settings.py
-├── data/outputs/              ← Reports saved here
-└── tests/
-    └── test_agents.py         ← Mocked unit tests (no Ollama needed)
-```
+## Possible Solution
+
+- Build a multi-agent AI system that automates due diligence across all dimensions.  
+- Use Ollama server to run LLMs locally for privacy and scalability.  
+- Deploy specialist agents for Market, Team, Product, Financials, and Competition.  
+- Orchestrate agents via a pipeline that collects data, runs parallel analysis, evaluates risk, and produces a final verdict.  
+- Generate structured dashboards and reports with scores, insights, and investment recommendations.  
 
 ---
 
-## ⚙️ Modes
-| Mode | Agents | Time (approx) |
-|------|--------|--------------|
-| full | All 7 | ~2–5 min |
-| quick | Market+Team+Product | ~1–2 min |
-| market-only | Market | ~15–30s |
-| team-only | Team | ~15–30s |
+## Implemented Solution
+
+- Input sources: Startup name, website URL, pitch deck PDF, and configuration flags.  
+- Tools: Web scraper (httpx + BeautifulSoup), PDF parser (pdfplumber), and settings manager.  
+- Orchestrator: Due Diligence Pipeline with phases — Collect → Parallel Agents → Risk Evaluation → Committee Verdict.  
+- Agents:  
+  - Market (TAM/SAM/SOM)  
+  - Team (founders, gaps)  
+  - Product (PMF, moat)  
+  - Financials (ARR, burn)  
+  - Competitive (landscape, moat)  
+- Risk agent aggregates all outputs and feeds into a committee agent for final scoring.  
+- Output: Interactive dashboard with scores, AI insights, and investment verdict (Invest / Pass).  
 
 ---
 
-## 🏗️ Architecture
-```
-Input → Orchestrator → [Market|Team|Product|Financial|Competitive] (parallel)
-                     → Risk Agent (uses prior summaries)
-                     → Committee Agent (weighted score + verdict)
-                     → HTML Dashboard + Markdown + JSON
-```
+## Tech Stack
+
+**Frontend**  
+- HTML5, CSS3, JavaScript for dashboard UI  
+
+**Backend**  
+- Python (FastAPI) for orchestrator and API server  
+- LangGraph for agent routing and state machine  
+- Ollama server for running LLM models locally  
+- Docker + docker-compose for containerized deployment  
+
+**AI / LLM**  
+- Ollama with LLaMA 3.3 70B model  
+-
+**AI / LLM**  
+- Ollama with LLaMA 3.3 70B model  
+- Multi-agent design (planner, searcher, summarizer, critic, optimizer, report writer)  
+
+**Tools**  
+- Web scraping: httpx + BeautifulSoup  
+- PDF parsing: pdfplumber  
+- Notifications: Pushover integration  
 
 ---
 
-## 🧪 Testing
-```bash
-pytest tests/ -v   # no Ollama needed — all mocked
-```
+## Architecture Diagram
+
+![System Architecture](./assests/vc_agent_system_architecture.png)
+
+## Pipeline Execution
+![Pipeline Execution](./assests/vc_pipeline_execution_flow.png)
+---
+
+## How to Run Locally
+
+### Prerequisites
+- Python 3.10+  
+- Ollama installed and running locally  
+- Docker + docker-compose installed  
+- API keys for optional integrations (Pushover, etc.)
+
+### Step 1 — Clone the repo
+git clone https://github.com/your-username/ai-vc-due-diligence.git
+cd ai-vc-due-diligence
+### Step 2 — Set up environment
+bash
+cp .env.example .env
+Add your Ollama model name and API keys inside .env.
+### Step 3 — Start backend
+bash
+docker-compose up --build
+Step 4 — Access dashboard
+Open in browser:
+Code
+http://localhost:8000
+
+### References & Resources
+
+Ollama Documentation — https://ollama.ai
+
+LangGraph — https://github.com/langchain-ai/langgraph (github.com in Bing)
+
+FastAPI — https://fastapi.tiangolo.com
+
+BeautifulSoup — https://www.crummy.com/software/BeautifulSoup (crummy.com in Bing)
+
+pdfplumber — https://github.com/jsvine/pdfplumber
+
+Docker — https://docs.docker.com
+
+### Screen Recording
+[Click here to watch Execution](https://drive.google.com/file/d/1JQPSCupoQVVQ1i8PTMPoNT6AC2ZXmlGc/view?usp=sharing)
+
+### Screenshots
+Dashboard — Startup input and analysis results
+![Dashboard](./assests/Screenshot%20(237).png)
+
+Agent outputs — Market, Team, Product, Financials, Competition
+![Dashbords](./assests/Screenshot%20(239).png)
+![Dashbords](./assests/Screenshot%20(241).png)
+![Dashbords](./assests/Screenshot%20(245).png)
+![Dashbords](./assests/Screenshot%20(244).png)
+![Dashbords](./assests/Screenshot%20(243).png)
+
+
+Final Verdict — Investment recommendation
+![Dashboard](./assests/Screenshot%20(240).png)
+
+### Problems Faced & Solutions
+1. Model integration issues
+
+    Problem: Initial Groq API setup was deprecated.
+
+    Solution: Migrated to Ollama server for local inference.
+
+2. Large pitch deck parsing
+
+    Problem: PDF files exceeded token limits.
+
+    Solution: Implemented smart text chunking with pdfplumber.
+
+3. Agent coordination errors
+
+    Problem: Agents produced inconsistent outputs.
+
+    Solution: Added critic + optimizer loop for refinement.
+
+4. Environment misconfiguration
+
+   Problem: .env file not loaded correctly.
+
+   Solution: Standardized .env.example template and Docker secrets.
+
+5. Notification failures
+
+   Problem: Pushover alerts not triggered.
+   
+   Solution: Debugged API keys and added retry logic.
